@@ -1,0 +1,13 @@
+# Ignorar pesos de Redes Neuronales
+*.pt
+*.pth
+
+# Ignorar carpetas de compilación de ROS 2
+build/
+install/
+log/
+
+# Ignorar archivos ocultos del sistema y Python
+__pycache__/
+*.pyc
+.vscode/
