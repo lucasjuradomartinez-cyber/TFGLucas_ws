@@ -1,6 +1,8 @@
 # Ignorar pesos de Redes Neuronales
 *.pt
 *.pth
+*.onnx
+*.engine
 
 # Ignorar carpetas de compilación de ROS 2
 build/
@@ -11,3 +13,4 @@ log/
 __pycache__/
 *.pyc
 .vscode/
+
