@@ -28,7 +28,8 @@ setup(
             'camera_simulator = sarnet_py.camera_simulator:main',
             'zed_segmentation_node = sarnet_py.zed_segmentation_node:main',
             'zed_segmentation_node_v2 = sarnet_py.zed_segmentation_node_v2:main',
-            'zed_segmentation_node_v3 = sarnet_py.zed_segmentation_node_v3:main'
+            'zed_segmentation_node_v3 = sarnet_py.zed_segmentation_node_v3:main',
+            'zed_segmentation_node_v4 = sarnet_py.zed_segmentation_node_v4:main'
         ],
     },
 )

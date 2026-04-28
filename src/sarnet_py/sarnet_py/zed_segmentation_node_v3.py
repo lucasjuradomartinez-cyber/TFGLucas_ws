@@ -24,26 +24,29 @@ class SARNetSegmentation(Node):
         self.input_size = (640, 480) 
         self.bridge = CvBridge()
         self.palette = get_palette() 
-        self.device = torch.device("cuda")
+        self.device = torch.device("cuda") #ahora obligo a usar GPU, a diferencia que en v2 ya no hay fallback a CPU ya que TensorRT necesita GPU NVIDIA
         
         self.get_logger().info("Inicializando TensorRT...")
 
-        # --- CARGA DEL MOTOR TENSORRT ---
-        package_share_directory = get_package_share_directory('sarnet_py')
-        engine_path = os.path.join(package_share_directory, 'weights', 'sarnet_fp16.engine')
+        # CARGA DEL MOTOR TENSORRT
+        package_share_directory = get_package_share_directory('sarnet_py') #busco la ruta del paquete sarnet_py
+        engine_path = os.path.join(package_share_directory, 'weights', 'sarnet_fp16.engine') #junto rutas hasta llegar al .engine y ya tengo su ruta completa
         
-        self.trt_logger = trt.Logger(trt.Logger.WARNING)
-        trt.init_libnvinfer_plugins(self.trt_logger, namespace="")
+        self.trt_logger = trt.Logger(trt.Logger.WARNING) #TensorRT usa su propio Logger, con WARNING, solo mostraras avisos y errores importantes
+        trt.init_libnvinfer_plugins(self.trt_logger, namespace="") #inicio plugins de TensorRT aunque mi red no use plugings personalizados, por seguridad
         
-        with open(engine_path, "rb") as f, trt.Runtime(self.trt_logger) as runtime:
-            self.engine = runtime.deserialize_cuda_engine(f.read())
+        #CArgo el engine desde disco
+        with open(engine_path, "rb") as f, trt.Runtime(self.trt_logger) as runtime: #abro el .engine en modo binario, creo un trt.Runtime y leo los bytes del engine
+            self.engine = runtime.deserialize_cuda_engine(f.read()) #DESERIALIZO: leer bytes guardados en disco y convertirlos en un objeto TensorRT ejecutable en memoria
             
-        self.trt_context = self.engine.create_execution_context()
+        #Creo el contexto de ejecución, ya que el engine es la red optimizada pero la inferencia necesita un estado adicional --> contexto: instancia preparada paar ejecutar esa red
+        self.trt_context = self.engine.create_execution_context() 
         
         # Pre-alojar memoria en la GPU para la salida (ahorra tiempo en cada frame)
         # Sabiendo que la salida es (1, 12, 480, 640) en formato FP16
+        #la clave es que creo este tensor vacion con el formato bueno en el init, no en cada frame y esto reduce overhead y asyuda al rendimiento
         self.output_tensor = torch.empty((1, self.n_class, self.input_size[1], self.input_size[0]), dtype=torch.float16, device=self.device).contiguous()
-        self.get_logger().info("Motor TensorRT cargado y listo para volar.")
+        self.get_logger().info("Motor TensorRT cargado y listo para volar.") 
 
         # Control de FPS y sincronización
         self.is_processing = False
@@ -102,9 +105,9 @@ class SARNetSegmentation(Node):
         torch.cuda.synchronize()
         start_inference = time.time()
         
-        # Vinculamos los punteros de memoria de PyTorch (Entrada y Salida) directamente a TensorRT
-        bindings = [int(img_tensor.data_ptr()), int(self.output_tensor.data_ptr())]
-        self.trt_context.execute_v2(bindings=bindings)
+        # Vinculamos los punteros de memoria de PyTorch (Entrada y Salida) directamente a TensorRT 
+        bindings = [int(img_tensor.data_ptr()), int(self.output_tensor.data_ptr())] 
+        self.trt_context.execute_v2(bindings=bindings)#--> MOMENTO EXACTO DE INFERENCIA,  TensorRT ejecuta la red neuronal SARNet sobre el frame actual
         
         torch.cuda.synchronize()
         inference_time = (time.time() - start_inference) * 1000
